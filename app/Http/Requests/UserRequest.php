@@ -27,7 +27,8 @@ class UserRequest extends FormRequest
             'last_name' => 'required|string',
             'email' => 'required|email',
             'gender' => 'required|in:Male,Female',
-            'birthday' => 'required|date|date_format:Y,m,d',
+            'birthday' => 'required|date|date_format:Y-m-d',
+            'is_admin' => 'nullable|boolean'
         ];
     }
 }

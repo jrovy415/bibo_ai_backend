@@ -16,11 +16,6 @@ class User extends Authenticatable
 
     public $model_name = 'User';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'first_name',
         'middle_name',
@@ -32,39 +27,44 @@ class User extends Authenticatable
         'is_admin',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'is_admin' => 'boolean',
         'password' => 'hashed',
     ];
 
+    protected $appends = ['initials'];
+
+    public function getInitialsAttribute(): string
+    {
+        $firstInitial = $this->first_name[0] ?? '';
+        $lastInitial = $this->last_name[0] ?? '';
+        return strtoupper($firstInitial . $lastInitial);
+    }
+
     public function scopeFilter($query)
     {
-        $search = request('search') ?? false;
+        $search = request('search');
 
-        $query->when(
-            request('search')  ?? false,
-            function ($query) use ($search) {
-                $search = '%' . $search . '%';
-                $query->whereAny([
-                    'first_name',
-                    'email'
-                ], 'LIKE', $search);
-            }
-        );
+        $query->when($search, function ($query) use ($search) {
+            $columns = [
+                'first_name',
+                'middle_name',
+                'last_name',
+                'email',
+                'gender',
+                'birthday',
+            ];
+
+            $query->where(function ($query) use ($search, $columns) {
+                foreach ($columns as $column) {
+                    $query->orWhere($column, 'LIKE', "%$search%");
+                }
+            });
+        });
     }
 }

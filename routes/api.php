@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,13 +14,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Unauthenticated
-Route::middleware([])
-    ->group(function () {
-        Route::group([], base_path('routes/api/user/user.php'));
-    });
+Route::middleware([])->group(function () {
+    Route::group([], base_path('routes/api/auth/auth.php'));
+});
 
 // Authenticated
-Route::middleware(['auth:sanctum'])
-    ->group(function () {
-        // Route::group([], base_path('routes/api/user/user.php'));
-    });
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::group([], base_path('routes/api/user/user.php'));
+});
