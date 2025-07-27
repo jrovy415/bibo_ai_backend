@@ -20,7 +20,6 @@ class AdminSeeder extends Seeder
             'gender' => 'Male',
             'birthday' => Carbon::now()->format('Y-m-d'),
             'password' => Hash::make('secret'),
-            'is_admin' => true
         ]);
     }
 }
