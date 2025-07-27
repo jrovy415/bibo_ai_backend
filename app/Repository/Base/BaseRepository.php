@@ -8,7 +8,6 @@ use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use PDOException;
@@ -29,12 +28,13 @@ abstract class BaseRepository implements BaseRepositoryInterface
     public function getList(): JsonResponse
     {
         $relations = request()->input('relations');
-
+        $sortByColumn = request()->input('sort_by_column', 'created_at');
+        $sortBy = request()->input('sort_by', 'desc');
         $all = request()->boolean('all');
 
         $modelName = $this->model->model_name;
 
-        $query = $this->model->query();
+        $query = $this->model->filter()->newQuery()->orderBy($sortByColumn, $sortBy);
 
         $query->when($relations, function (Builder $query) use ($relations) {
             $relations = explode(',', $relations);
@@ -46,7 +46,7 @@ abstract class BaseRepository implements BaseRepositoryInterface
             $modelName,
             $all ?
                 $query->get() :
-                $query->paginate(request()->input('itemsPerPage') ?? 10)
+                $query->paginate(request()->input('limit') ?? 10)
         );
     }
 
