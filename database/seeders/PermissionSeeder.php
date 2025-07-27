@@ -16,17 +16,23 @@ class PermissionSeeder extends Seeder
         $actions = ['create', 'view', 'update', 'delete'];
         $modules = $this->getAllModels();
 
-        foreach ($modules as $model => $module) {
-            foreach ($actions as $action) {
-                $name = "{$action} {$module}";
-                $slug = Str::slug($name);
+        $exclude = [
+            'App\Models\RolePermission',
+        ];
 
-                if (!Permission::where('model', $model)->where('slug', $slug)->exists()) {
-                    Permission::create([
-                        'model' => $model,
-                        'name' => $name,
-                        'slug' => $slug
-                    ]);
+        foreach ($modules as $model => $module) {
+            if (!in_array($model, $exclude)) {
+                foreach ($actions as $action) {
+                    $name = "{$action} {$module}";
+                    $slug = Str::slug($name);
+
+                    if (!Permission::where('model', $model)->where('slug', $slug)->exists()) {
+                        Permission::create([
+                            'model' => $model,
+                            'name' => $name,
+                            'slug' => $slug
+                        ]);
+                    }
                 }
             }
         }
