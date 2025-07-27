@@ -10,5 +10,5 @@ interface AuthServiceInterface
 
     public function logout();
 
-    public function authUser(): Authenticatable;
+    public function authUser();
 }

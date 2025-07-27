@@ -6,6 +6,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -17,6 +19,7 @@ class User extends Authenticatable
     public $model_name = 'User';
 
     protected $fillable = [
+        'role_id',
         'first_name',
         'middle_name',
         'last_name',
@@ -24,7 +27,6 @@ class User extends Authenticatable
         'gender',
         'birthday',
         'password',
-        'is_admin',
     ];
 
     protected $hidden = [
@@ -44,6 +46,11 @@ class User extends Authenticatable
         $firstInitial = $this->first_name[0] ?? '';
         $lastInitial = $this->last_name[0] ?? '';
         return strtoupper($firstInitial . $lastInitial);
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id', 'id');
     }
 
     public function scopeFilter($query)

@@ -20,5 +20,14 @@ Route::middleware([])->group(function () {
 
 // Authenticated
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::group([], base_path('routes/api/user/user.php'));
+    $routes = [
+        'user/user',
+        'role/role',
+        'permission/permission',
+        'role_permission/role_permission',
+    ];
+
+    foreach ($routes as $route) {
+        Route::group([], base_path("routes/api/{$route}.php"));
+    }
 });

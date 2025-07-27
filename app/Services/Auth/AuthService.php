@@ -38,9 +38,9 @@ class AuthService implements AuthServiceInterface
     {
         $user = $this->userRepository->getUserByEmail($params['email']);
 
-        if (!$user->is_admin) {
-            throw ValidationException::withMessages(['login_error' => 'User must be an admin to login.']);
-        }
+        // if (!$user->is_admin) {
+        //     throw ValidationException::withMessages(['login_error' => 'User must be an admin to login.']);
+        // }
 
         if (Hash::check(Arr::get($params, 'password'), $user->password)) {
             $this->auditLogService->loginLog('login', ['email' => $params['email']]);
@@ -63,8 +63,8 @@ class AuthService implements AuthServiceInterface
         return $this->responseService->resolveResponse('Logout Successful', null);
     }
 
-    public function authUser(): Authenticatable
+    public function authUser()
     {
-        return Auth::user();
+        return $this->responseService->resolveResponse('Authenticated User', Auth::user());
     }
 }
