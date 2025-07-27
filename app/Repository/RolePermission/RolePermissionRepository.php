@@ -25,6 +25,8 @@ class RolePermissionRepository implements RolePermissionRepositoryInterface
 
         $role->permissions()->sync($attributes['permissions']);
 
+        $role->touch();
+
         $this->auditLogService->insertLog($this->model, 'update', $attributes);
 
         return $this->responseService->updateResponse(

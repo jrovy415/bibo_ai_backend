@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Models\User;
 use App\Repository\User\UserRepositoryInterface;
 use App\Services\AuditLog\AuditLogServiceInterface;
 use App\Services\Utils\ResponseServiceInterface;
@@ -65,6 +66,14 @@ class AuthService implements AuthServiceInterface
 
     public function authUser()
     {
-        return $this->responseService->resolveResponse('Authenticated User', Auth::user());
+        $authUser = Auth::user();
+
+        if (!$authUser) {
+            return $this->responseService->resolveResponse('Unauthenticated', null, 401);
+        }
+
+        $user = User::withoutGlobalScopes()->find($authUser->id)->load('role.permissions');
+
+        return $this->responseService->resolveResponse('Authenticated User', $user);
     }
 }
