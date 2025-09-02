@@ -35,17 +35,11 @@ class AuthService implements AuthServiceInterface
         ];
     }
 
-    public function login(array $params, bool $isGoogleAuthenticated = false): array
+    public function login(array $params, bool $isGoogleAuthenticated = false)
     {
-        $user = $this->userRepository->getUserByEmail($params['email']);
+        $user = User::where('username', $params['username'])->first();
 
-        // if (!$user->is_admin) {
-        //     throw ValidationException::withMessages(['login_error' => 'User must be an admin to login.']);
-        // }
-
-        if (Hash::check(Arr::get($params, 'password'), $user->password)) {
-            $this->auditLogService->loginLog('login', ['email' => $params['email']]);
-
+        if ($user && Hash::check(Arr::get($params, 'password'), $user->password)) {
             return [
                 'token' => $user->createToken('UserLogin')->plainTextToken,
                 'user'  => $user,
@@ -53,7 +47,7 @@ class AuthService implements AuthServiceInterface
         }
 
         throw ValidationException::withMessages([
-            'invalid_user_name_or_password' => "Invalid E-mail or Password",
+            'invalid_user_name_or_password' => "Invalid Username or Password",
         ]);
     }
 

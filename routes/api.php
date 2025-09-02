@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'role/role',
         'permission/permission',
         'role_permission/role_permission',
+        'student/student',
     ];
 
     foreach ($routes as $route) {

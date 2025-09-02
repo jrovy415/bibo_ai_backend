@@ -8,6 +8,8 @@ use App\Repository\Role\RoleRepository;
 use App\Repository\Role\RoleRepositoryInterface;
 use App\Repository\RolePermission\RolePermissionRepository;
 use App\Repository\RolePermission\RolePermissionRepositoryInterface;
+use App\Repository\Student\StudentRepository;
+use App\Repository\Student\StudentRepositoryInterface;
 use App\Repository\User\UserRepository;
 use App\Repository\User\UserRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
@@ -20,6 +22,7 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
         $this->app->bind(RolePermissionRepositoryInterface::class, RolePermissionRepository::class);
+        $this->app->bind(StudentRepositoryInterface::class, StudentRepository::class);
     }
 
     public function boot(): void {}
