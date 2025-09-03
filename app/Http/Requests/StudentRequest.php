@@ -22,13 +22,9 @@ class StudentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role_id' => 'required|exists:roles,id',
-            'first_name' => 'required|string',
-            'middle_name' => 'nullable|string',
-            'last_name' => 'required|string',
-            'email' => 'required|email',
-            'gender' => 'required|in:Male,Female',
-            'birthday' => 'required|date|date_format:Y-m-d',
+            'nickname'    => 'required|string',
+            'grade_level' => 'required|in:Grade 1,Kinder',
+            'section'     => 'required|in:1,2,3,4',
         ];
     }
 }

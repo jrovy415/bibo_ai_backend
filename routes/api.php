@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Student\StudentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Route;
 // Unauthenticated
 Route::middleware([])->group(function () {
     Route::group([], base_path('routes/api/auth/auth.php'));
+
+    Route::post('/students/login', [StudentController::class, 'login'])->name('students.login');
 });
 
 // Authenticated

@@ -39,4 +39,14 @@ class StudentController extends Controller
     {
         return $this->modelRepository->delete($id);
     }
+
+    public function login(ModelRequest $request)
+    {
+        return $this->modelRepository->login($request->validated());
+    }
+
+    public function logout()
+    {
+        return $this->modelRepository->logout();
+    }
 }

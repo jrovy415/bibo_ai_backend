@@ -22,13 +22,14 @@ class UserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role_id' => 'required|exists:roles,id',
+            // 'role_id' => 'required|exists:roles,id',
+            'username' => 'required|string|unique:users,username,' . $this->route('id'),
             'first_name' => 'required|string',
             'middle_name' => 'nullable|string',
             'last_name' => 'required|string',
-            'email' => 'required|email',
-            'gender' => 'required|in:Male,Female',
-            'birthday' => 'required|date|date_format:Y-m-d',
+            // 'email' => 'required|email',
+            // 'gender' => 'required|in:Male,Female',
+            // 'birthday' => 'required|date|date_format:Y-m-d',
         ];
     }
 }
