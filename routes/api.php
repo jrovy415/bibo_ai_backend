@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\AnswerController;
+use App\Http\Controllers\ChoiceController;
+use App\Http\Controllers\QuestionController;
+use App\Http\Controllers\QuestionTypeController;
+use App\Http\Controllers\QuizAttemptController;
+use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Student\StudentController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +29,18 @@ Route::middleware([])->group(function () {
 
 // Authenticated
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::prefix('quizzes')->controller(QuizController::class)->name('quizzes.')->group(function () {
+        Route::get('get-quiz', 'getQuiz')->name('getQuiz');
+        Route::get('get-quizzes/{grade_level}', 'getAllQuizzesByGradeLevel')->name('getAllQuizzesByGradeLevel');
+    });
+    Route::apiResource('quizzes', QuizController::class);
+
+    Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('choices', ChoiceController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('quiz-attempts', QuizAttemptController::class);
+    Route::apiResource('answers', AnswerController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('question-types', QuestionTypeController::class);
+
     $routes = [
         'user/user',
         'role/role',

@@ -66,8 +66,6 @@ class AuthService implements AuthServiceInterface
             return $this->responseService->resolveResponse('Unauthenticated', null, 401);
         }
 
-        $user = User::withoutGlobalScopes()->find($authUser->id)->load('role.permissions');
-
-        return $this->responseService->resolveResponse('Authenticated User', $user);
+        return $this->responseService->resolveResponse('Authenticated User', $authUser);
     }
 }
