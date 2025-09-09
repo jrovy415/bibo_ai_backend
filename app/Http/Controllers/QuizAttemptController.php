@@ -157,4 +157,30 @@ class QuizAttemptController extends Controller
             );
         }
     }
+
+    public function getAllQuizAttemptsByStudent(Request $request, $studentId)
+    {
+        try {
+            $isLatest = filter_var($request->query('is_latest', false), FILTER_VALIDATE_BOOLEAN);
+
+            if ($isLatest) {
+                $quizAttempts = QuizAttempt::where('student_id', $studentId)
+                    ->latest() // defaults to created_at
+                    ->first();
+            } else {
+                $quizAttempts = QuizAttempt::where('student_id', $studentId)->get();
+            }
+
+            return $this->responseService->resolveResponse(
+                "Quiz Attempts retrieved successfully",
+                $quizAttempts
+            );
+        } catch (\Exception $e) {
+            return $this->responseService->resolveResponse(
+                'Error retrieving quiz attempts',
+                $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 }

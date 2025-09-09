@@ -58,7 +58,28 @@ class AnswerController extends Controller
                 $choices = Choice::where('question_id', $question->id)->get();
 
                 $matchingChoice = $choices->first(function ($choice) use ($transcript) {
-                    return strcasecmp($choice->choice_text, $transcript) === 0;
+                    $normalize = function ($text) {
+                        return strtolower(
+                            preg_replace(
+                                '/\s+/',
+                                ' ',
+                                str_replace('.', '', trim($text))
+                            )
+                        );
+                    };
+
+                    $normalizedTranscript = $normalize($transcript);
+                    $normalizedChoice = $normalize($choice->choice_text);
+
+                    if ($normalizedTranscript === $normalizedChoice) {
+                        return true;
+                    }
+
+                    if (str_replace(' ', '', $normalizedTranscript) === str_replace(' ', '', $normalizedChoice)) {
+                        return true;
+                    }
+
+                    return false;
                 });
 
                 $choiceId = $matchingChoice?->id;

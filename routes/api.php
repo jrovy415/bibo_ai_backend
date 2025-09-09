@@ -30,14 +30,19 @@ Route::middleware([])->group(function () {
 // Authenticated
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('quizzes')->controller(QuizController::class)->name('quizzes.')->group(function () {
-        Route::get('get-quiz', 'getQuiz')->name('getQuiz');
         Route::get('get-quizzes/{grade_level}', 'getAllQuizzesByGradeLevel')->name('getAllQuizzesByGradeLevel');
+        Route::get('get-quiz', 'getQuiz')->name('getQuiz');
     });
     Route::apiResource('quizzes', QuizController::class);
 
+    Route::prefix('quiz-attempts')->controller(QuizAttemptController::class)->name('quiz-attempts.')->group(function () {
+        Route::get('student-attempts/{studentId}', 'getAllQuizAttemptsByStudent')->name('getAllQuizAttemptsByStudent');
+        Route::get('get-quiz', 'getQuiz')->name('getQuiz');
+    });
+    Route::apiResource('quiz-attempts', QuizAttemptController::class);
+
     Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('choices', ChoiceController::class)->only(['store', 'update', 'destroy']);
-    Route::apiResource('quiz-attempts', QuizAttemptController::class);
     Route::apiResource('answers', AnswerController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('question-types', QuestionTypeController::class);
 
