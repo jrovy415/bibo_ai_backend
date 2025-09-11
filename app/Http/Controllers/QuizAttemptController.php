@@ -57,7 +57,13 @@ class QuizAttemptController extends Controller
                 $validated['student_id'] = $auth->id;
                 $validated['started_at'] = Carbon::now();
 
-                $attempt = $this->model->create($validated);
+                $attempt = $this->model->firstOrCreate(
+                    [
+                        'quiz_id' => $validated['quiz_id'],
+                        'student_id' => $auth->id,
+                    ],
+                    $validated
+                );
 
                 return $this->responseService->resolveResponse(
                     'Quiz Attempt created successfully',
