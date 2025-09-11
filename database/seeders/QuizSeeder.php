@@ -23,7 +23,7 @@ class QuizSeeder extends Seeder
         Schema::enableForeignKeyConstraints();
 
         // Get admin teacher
-        $teacher = User::where('username', 'admin')->first();
+        $teacher = User::where('username', 'superadmin')->first();
         if (!$teacher) {
             $this->command->error('No admin user found. Please create a user with username "admin".');
             return;

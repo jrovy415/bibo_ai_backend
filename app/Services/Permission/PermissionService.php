@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Services\Permission;
+
 use App\Repository\Permission\PermissionRepositoryInterface;
 
 class PermissionService implements PermissionServiceInterface
