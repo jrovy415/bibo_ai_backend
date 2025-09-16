@@ -138,7 +138,7 @@ class QuestionController extends Controller
     {
         try {
             $request->validate([
-                'photo' => 'required|image|max:2048',
+                'photo' => 'required|image',
             ]);
 
             // Save into "questions/{quizId}"
