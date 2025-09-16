@@ -60,6 +60,7 @@ class QuizAttemptController extends Controller
                     'student_id'  => $auth->id,
                 ];
 
+<<<<<<< HEAD
                 $attempt = $this->model->updateOrCreate(
                     [
                         'quiz_id'    => $quiz->id,
@@ -70,6 +71,14 @@ class QuizAttemptController extends Controller
                         ...$data,
                         'started_at' => Carbon::now(),
                     ]
+=======
+                $attempt = $this->model->firstOrCreate(
+                    [
+                        'quiz_id' => $validated['quiz_id'],
+                        'student_id' => $auth->id,
+                    ],
+                    $validated
+>>>>>>> c4d3854ba040df93ccca66d775107d1f33303143
                 );
 
                 return $this->responseService->resolveResponse(
