@@ -60,7 +60,6 @@ class QuizAttemptController extends Controller
                     'student_id'  => $auth->id,
                 ];
 
-<<<<<<< HEAD
                 $attempt = $this->model->updateOrCreate(
                     [
                         'quiz_id'    => $quiz->id,
@@ -71,14 +70,6 @@ class QuizAttemptController extends Controller
                         ...$data,
                         'started_at' => Carbon::now(),
                     ]
-=======
-                $attempt = $this->model->firstOrCreate(
-                    [
-                        'quiz_id' => $validated['quiz_id'],
-                        'student_id' => $auth->id,
-                    ],
-                    $validated
->>>>>>> c4d3854ba040df93ccca66d775107d1f33303143
                 );
 
                 return $this->responseService->resolveResponse(
@@ -171,7 +162,7 @@ class QuizAttemptController extends Controller
                             ->whereColumn('score', DB::raw('(select count(*) from questions where questions.quiz_id = quizzes.id)'));
                     })
                     ->doesntExist();
-                    
+
                 $newDifficulty = $allMediumPerfected ? 'Hard' : 'Medium';
             }
 
