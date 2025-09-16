@@ -72,10 +72,10 @@ class QuizController extends Controller
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
 
                 // handle choices
-                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
+                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question, $questionData) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $choiceData['question_text'],
+                        'choice_text' => $questionData['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
@@ -167,10 +167,10 @@ class QuizController extends Controller
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
 
                 // handle choices
-                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
+                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question, $questionData) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $choiceData['question_text'],
+                        'choice_text' => $questionData['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
