@@ -195,6 +195,52 @@ class QuizController extends Controller
         }
     }
 
+    public function destroy($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $quiz = Quiz::find($id);
+
+            if (!$quiz) {
+                return $this->responseService->resolveResponse(
+                    'Quiz not found',
+                    null,
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+
+            // Delete related questions and choices
+            foreach ($quiz->questions as $question) {
+                $question->choices()->delete();
+                $question->delete();
+            }
+
+            // Delete related reading materials (if you added that table)
+            if (method_exists($quiz, 'readingMaterials')) {
+                $quiz->readingMaterials()->delete();
+            }
+
+            $quiz->delete();
+
+            DB::commit();
+
+            return $this->responseService->resolveResponse(
+                'Quiz deleted successfully',
+                null,
+                Response::HTTP_OK
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return $this->responseService->resolveResponse(
+                'Error deleting quiz',
+                $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
     public function getQuiz()
     {
         $student = Auth::user();
