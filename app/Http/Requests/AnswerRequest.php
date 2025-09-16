@@ -37,15 +37,15 @@ class AnswerRequest extends FormRequest
             return $questionType->name !== 'reading';
         });
 
-        $validator->sometimes('transcript', 'required|string', function ($input) {
-            $question = Question::find($input->question_id);
+        // $validator->sometimes('transcript', 'required|string', function ($input) {
+        //     $question = Question::find($input->question_id);
 
-            if (!$question) return false;
+        //     if (!$question) return false;
 
-            $questionType = QuestionType::find($question->question_type_id);
+        //     $questionType = QuestionType::find($question->question_type_id);
 
-            return $questionType->name === 'reading';
-        });
+        //     return $questionType->name === 'reading';
+        // });
     }
 
     public function messages(): array

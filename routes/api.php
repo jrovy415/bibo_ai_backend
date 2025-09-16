@@ -25,12 +25,14 @@ Route::middleware([])->group(function () {
     Route::group([], base_path('routes/api/auth/auth.php'));
 
     Route::post('/students/login', [StudentController::class, 'login'])->name('students.login');
+    Route::post('/quizzes/{quiz}/questions/upload-photo', [QuestionController::class, 'uploadPhoto'])->name('question.uploadPhoto');
+    Route::delete('/quizzes/{quiz}/questions/delete-photo', [QuestionController::class, 'deletePhoto'])->name('question.deletePhoto');
 });
 
 // Authenticated
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('quizzes')->controller(QuizController::class)->name('quizzes.')->group(function () {
-        Route::get('get-quizzes/{grade_level}', 'getAllQuizzesByGradeLevel')->name('getAllQuizzesByGradeLevel');
+        Route::get('get-all-quizzes', 'getAllQuizzes')->name('getAllQuizzes');
         Route::get('get-quiz', 'getQuiz')->name('getQuiz');
     });
     Route::apiResource('quizzes', QuizController::class);

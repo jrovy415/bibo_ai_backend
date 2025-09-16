@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Question extends Model
 {
@@ -18,6 +17,8 @@ class Question extends Model
         'question_type_id',
         'quiz_id',
         'question_text',
+        'photo',
+        'points',
     ];
 
     protected $with = ['choices', 'questionType'];

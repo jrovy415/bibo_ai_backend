@@ -29,7 +29,30 @@ class QuizRequest extends FormRequest
             'questions.*.question_type_id' => 'required|exists:question_types,id',
             'questions.*.points' => 'required|integer|min:1',
 
-            // Choices required only if question type is "Multiple Choice"
+            // Replace the current photo validation rule with:
+            'questions.*.photo' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    // Allow string filenames (after upload)
+                    if (is_string($value)) {
+                        return;
+                    }
+
+                    // Allow direct file upload
+                    if ($value instanceof \Illuminate\Http\UploadedFile) {
+                        return;
+                    }
+
+                    // Otherwise fail
+                    $fail("The {$attribute} must be a string filename, an uploaded file, or null.");
+                },
+            ],
+
+            // Choices (only required if multiple choice)
             'questions.*.choices' => [
                 'array',
                 function ($attribute, $value, $fail) {

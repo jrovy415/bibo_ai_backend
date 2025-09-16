@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentRequest as ModelRequest;
+use App\Models\Student;
 use App\Repository\Student\StudentRepositoryInterface;
 
 class StudentController extends Controller
@@ -48,5 +49,18 @@ class StudentController extends Controller
     public function logout()
     {
         return $this->modelRepository->logout();
+    }
+
+    public function getDifficulty(Student $student)
+    {
+        $currentDifficulty = $student->currentDifficulty?->difficulty ?? 'Introduction';
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'student_id' => $student->id,
+                'difficulty' => $currentDifficulty,
+            ],
+        ]);
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Quiz extends Model
 {
@@ -57,6 +58,11 @@ class Quiz extends Model
 
     public function quizAttempt(): HasMany
     {
-        return $this->hasMany(QuizAttempt::class);
+        return $this->hasMany(QuizAttempt::class, 'quiz_id', 'id');
+    }
+
+    public function latestQuizAttempt(): HasOne
+    {
+        return $this->hasOne(QuizAttempt::class, 'quiz_id', 'id')->latestOfMany('started_at');
     }
 }

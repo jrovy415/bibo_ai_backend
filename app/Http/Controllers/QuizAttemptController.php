@@ -6,10 +6,12 @@ use App\Http\Requests\QuizRequest as ModelRequest;
 use App\Models\Answer;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\StudentDifficulty;
 use App\Services\Utils\ResponseServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class QuizAttemptController extends Controller
@@ -51,16 +53,27 @@ class QuizAttemptController extends Controller
             $quiz = Quiz::findOrFail($validated['quiz_id']);
 
             if ($quiz) {
-                $validated['title'] = $quiz->title;
-                $validated['grade_level'] = $quiz->grade_level;
-                $validated['difficulty'] = $quiz->difficulty;
-                $validated['student_id'] = $auth->id;
-                $validated['started_at'] = Carbon::now();
+                $data = [
+                    'title'       => $quiz->title,
+                    'grade_level' => $quiz->grade_level,
+                    'difficulty'  => $quiz->difficulty,
+                    'student_id'  => $auth->id,
+                ];
 
-                $attempt = $this->model->create($validated);
+                $attempt = $this->model->updateOrCreate(
+                    [
+                        'quiz_id'    => $quiz->id,
+                        'student_id' => $auth->id,
+                        'completed_at' => null, // only reuse if still incomplete
+                    ],
+                    [
+                        ...$data,
+                        'started_at' => Carbon::now(),
+                    ]
+                );
 
                 return $this->responseService->resolveResponse(
-                    'Quiz Attempt created successfully',
+                    'Quiz Attempt created or reused successfully',
                     $attempt,
                     Response::HTTP_CREATED
                 );
@@ -100,39 +113,80 @@ class QuizAttemptController extends Controller
         }
     }
 
-    public function update($id)
+    public function update(Request $request, $id)
     {
-        $auth = Auth::user();
-        logger('Updating quiz attempt: ' . $id);
+        DB::beginTransaction();
 
         try {
-            $attempt = $this->model->find($id);
+            $attempt = QuizAttempt::with('quiz', 'student')->findOrFail($id);
+            $quiz = $attempt->quiz;
+            $student = $attempt->student;
 
-            if (!$attempt) {
-                return $this->responseService->resolveResponse(
-                    'Quiz Attempt not found',
-                    null,
-                    Response::HTTP_NOT_FOUND
+            // Calculate score
+            $score = Answer::where('attempt_id', $attempt->id)
+                ->where('is_correct', true)
+                ->count();
+            $totalItems = $quiz->questions()->count();
+
+            $attempt->update([
+                'score' => $score,
+                'completed_at' => now(),
+            ]);
+
+            // --- Difficulty progression ---
+            $newDifficulty = null;
+
+            if ($quiz->difficulty === 'Introduction') {
+                $newDifficulty = 'Easy';
+            }
+
+            if ($quiz->difficulty === 'Easy') {
+                $allEasyPerfected = Quiz::where('grade_level', $student->grade_level)
+                    ->where('difficulty', 'Easy')
+                    ->whereDoesntHave('quizAttempt', function ($q) use ($student) {
+                        $q->where('student_id', $student->id)
+                            ->whereNotNull('completed_at')
+                            ->whereColumn('score', DB::raw('(select count(*) from questions where questions.quiz_id = quizzes.id)'));
+                    })
+                    ->doesntExist();
+
+                $newDifficulty = $allEasyPerfected ? 'Medium' : 'Easy';
+            }
+
+            if ($quiz->difficulty === 'Medium') {
+                $allMediumPerfected = Quiz::where('grade_level', $student->grade_level)
+                    ->where('difficulty', 'Medium')
+                    ->whereDoesntHave('quizAttempt', function ($q) use ($student) {
+                        $q->where('student_id', $student->id)
+                            ->whereNotNull('completed_at')
+                            ->whereColumn('score', DB::raw('(select count(*) from questions where questions.quiz_id = quizzes.id)'));
+                    })
+                    ->doesntExist();
+                    
+                $newDifficulty = $allMediumPerfected ? 'Hard' : 'Medium';
+            }
+
+            if ($quiz->difficulty === 'Hard') {
+                $newDifficulty = 'Hard'; // end of progression
+            }
+
+            // Save/update student's current difficulty
+            if ($newDifficulty) {
+                StudentDifficulty::updateOrCreate(
+                    ['student_id' => $student->id], // 👈 1 row per student
+                    ['difficulty' => $newDifficulty]
                 );
             }
 
-            $score = Answer::where('attempt_id', $id)
-                ->where('is_correct', true)
-                ->count();
-
-            $request = [
-                'score' => $score,
-                'student_id' => $auth->id,
-                'completed_at' => Carbon::now(),
-            ];
-
-            $attempt->update($request);
+            DB::commit();
 
             return $this->responseService->resolveResponse(
-                'Quiz Attempt updated successfully',
+                'Quiz attempt updated successfully',
                 $attempt
             );
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return $this->responseService->resolveResponse(
                 'Error updating quiz attempt',
                 $e->getMessage(),
@@ -140,7 +194,6 @@ class QuizAttemptController extends Controller
             );
         }
     }
-
 
     public function destroy($id)
     {

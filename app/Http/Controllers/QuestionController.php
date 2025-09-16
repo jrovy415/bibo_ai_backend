@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\QuizRequest as ModelRequest;
 use App\Models\Question;
 use App\Services\Utils\ResponseServiceInterface;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 class QuestionController extends Controller
@@ -37,7 +39,15 @@ class QuestionController extends Controller
     public function store(ModelRequest $request)
     {
         try {
-            $question = $this->model->create($request->validated());
+            $validated = $request->validated();
+
+            if ($request->hasFile('photo')) {
+                $quizId = $validated['quiz_id']; // make sure quiz_id is in validated data
+                $path = $request->file('photo')->store("questions/{$quizId}", 'public');
+                $validated['photo'] = $path;
+            }
+
+            $question = $this->model->create($validated);
 
             return $this->responseService->resolveResponse(
                 'Question created successfully',
@@ -52,6 +62,7 @@ class QuestionController extends Controller
             );
         }
     }
+
 
     public function show($id)
     {
@@ -119,6 +130,53 @@ class QuestionController extends Controller
                 'Error deleting question',
                 $e->getMessage(),
                 Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    public function uploadPhoto(Request $request, $quizId)
+    {
+        try {
+            $request->validate([
+                'photo' => 'required|image|max:2048',
+            ]);
+
+            // Save into "questions/{quizId}"
+            $path = $request->file('photo')->store("questions/{$quizId}", 'public');
+
+            $data = [
+                'filename' => $path, // store this in DB
+                'url'      => asset("storage/{$path}"),
+            ];
+
+            return $this->responseService->storeResponse('Photo', $data);
+        } catch (\Exception $e) {
+            return $this->responseService->rejectResponse(
+                'Error uploading photo',
+                $e->getMessage()
+            );
+        }
+    }
+
+    public function deletePhoto(Request $request, $quizId)
+    {
+        try {
+            $request->validate([
+                'filename' => 'required|string',
+            ]);
+
+            // File path under "questions/{quizId}"
+            $path = $request->input('filename');
+
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+
+            return $this->responseService->deleteResponse('Photo', $path);
+        } catch (\Exception $e) {
+            return $this->responseService->rejectResponse(
+                'Error deleting photo',
+                $e->getMessage()
             );
         }
     }
