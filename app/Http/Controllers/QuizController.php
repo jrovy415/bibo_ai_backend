@@ -75,7 +75,7 @@ class QuizController extends Controller
                 collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $choiceData['choice_text'],
+                        'choice_text' => $choiceData['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
@@ -170,7 +170,7 @@ class QuizController extends Controller
                 collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $choiceData['choice_text'],
+                        'choice_text' => $choiceData['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
