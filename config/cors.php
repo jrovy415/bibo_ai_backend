@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'http://localhost:3000', 'https://bibo-ai-backend.onrender.com', 'http://192.168.32.1:3000'],
+    'allowed_origins' => ['http://localhost:5173', 'http://localhost:3000', 'https://bibo-ai-backend.onrender.com', 'http://192.168.32.1:3000', 'https://bibo-ai-frontend.vercel.app/'],
 
     'allowed_origins_patterns' => [],
 
