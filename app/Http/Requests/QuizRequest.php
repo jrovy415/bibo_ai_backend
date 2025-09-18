@@ -25,7 +25,8 @@ class QuizRequest extends FormRequest
 
             // Questions
             'questions' => 'sometimes|array',
-            'questions.*.question_text' => 'required|string',
+            'questions.*.question_text' => 'nullable|string',
+            'questions.*.choice_text' => 'nullable|string',
             'questions.*.question_type_id' => 'required|exists:question_types,id',
             'questions.*.points' => 'required|integer|min:1',
 
@@ -78,6 +79,11 @@ class QuizRequest extends FormRequest
 
             'questions.*.choices.*.choice_text' => 'required_with:questions.*.choices|string',
             'questions.*.choices.*.is_correct' => 'boolean',
+
+            'material' => 'nullable|array',
+            'material.title' => 'required_with:material|string',
+            'material.type' => 'required_with:material|in:youtube,story,link',
+            'material.content' => 'required_with:material|string',
         ];
     }
 

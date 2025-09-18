@@ -24,7 +24,7 @@ class Quiz extends Model
         'is_active',
     ];
 
-    protected $with = ['teacher', 'questions.choices'];
+    protected $with = ['teacher', 'questions.choices', 'material'];
 
     public function scopeFilter($query)
     {
@@ -64,5 +64,10 @@ class Quiz extends Model
     public function latestQuizAttempt(): HasOne
     {
         return $this->hasOne(QuizAttempt::class, 'quiz_id', 'id')->latestOfMany('started_at');
+    }
+
+    public function material(): HasOne
+    {
+        return $this->hasOne(QuizMaterial::class);
     }
 }

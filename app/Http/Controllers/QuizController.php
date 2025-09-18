@@ -7,6 +7,7 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Choice;
 use App\Models\QuizAttempt;
+use App\Models\QuizMaterial;
 use App\Services\Utils\ResponseServiceInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +60,16 @@ class QuizController extends Controller
                 'is_active'    => $request->is_active ?? true,
             ]);
 
+            // Save material if provided
+            if ($request->filled('material')) {
+                QuizMaterial::create([
+                    'quiz_id' => $quiz->id,
+                    'title'   => $request->material['title'],
+                    'type'    => $request->material['type'],
+                    'content' => $request->material['content'],
+                ]);
+            }
+
             collect($request->questions)->map(function ($questionData) use ($quiz) {
                 $question = Question::create([
                     'quiz_id'          => $quiz->id,
@@ -68,14 +79,12 @@ class QuizController extends Controller
                     'photo'            => $questionData['photo']
                 ]);
 
-                // handle photo upload
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
 
-                // handle choices
-                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question, $questionData) {
+                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $questionData['question_text'],
+                        'choice_text' => $choiceData['choice_text'] !== $question['question_text'] ? $choiceData['choice_text'] : $question['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
@@ -83,7 +92,7 @@ class QuizController extends Controller
 
             DB::commit();
 
-            $quiz->load(['questions.choices', 'questions.questionType']);
+            $quiz->load(['questions.choices', 'questions.questionType', 'material']);
 
             return $this->responseService->resolveResponse(
                 'Quiz created successfully',
@@ -92,7 +101,6 @@ class QuizController extends Controller
             );
         } catch (\Exception $e) {
             DB::rollBack();
-
             return $this->responseService->resolveResponse(
                 'Error creating quiz',
                 $e->getMessage(),
@@ -154,6 +162,9 @@ class QuizController extends Controller
             // wipe old questions + choices
             $quiz->questions()->delete();
 
+            // wipe old materials
+            $quiz->material()->delete();
+
             collect($request->questions)->map(function ($questionData) use ($quiz) {
                 $question = Question::create([
                     'quiz_id'          => $quiz->id,
@@ -167,14 +178,23 @@ class QuizController extends Controller
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
 
                 // handle choices
-                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question, $questionData) {
+                collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
                     Choice::create([
                         'question_id' => $question->id,
-                        'choice_text' => $questionData['question_text'],
+                        'choice_text' => $choiceData['choice_text'] !== $question['question_text'] ? $choiceData['choice_text'] : $question['question_text'],
                         'is_correct'  => $choiceData['is_correct'] ?? false,
                     ]);
                 });
             });
+
+            if ($request->filled('material')) {
+                QuizMaterial::create([
+                    'quiz_id' => $quiz->id,
+                    'title'   => $request->material['title'],
+                    'type'    => $request->material['type'],
+                    'content' => $request->material['content'],
+                ]);
+            }
 
             DB::commit();
 
@@ -217,8 +237,8 @@ class QuizController extends Controller
             }
 
             // Delete related reading materials (if you added that table)
-            if (method_exists($quiz, 'readingMaterials')) {
-                $quiz->readingMaterials()->delete();
+            if (method_exists($quiz, 'material')) {
+                $quiz->material()->delete();
             }
 
             $quiz->delete();

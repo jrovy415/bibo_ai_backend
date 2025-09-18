@@ -135,22 +135,6 @@ class QuizSeeder extends Seeder
             ]
         ];
 
-        // -------------------------------
-        // 2. Activity-based reading quizzes
-        // -------------------------------
-        $activities = [
-            'Kinder' => [
-                'Easy' => 'Match simple words (e.g., sun, dog, cat) with their corresponding pictures.',
-                'Medium' => 'Listen to a short 3–4 sentence story and answer simple “Who/What” questions.',
-                'Hard' => 'Arrange 3–4 picture cards in sequence to show the beginning, middle, and end of a story.',
-            ],
-            'Grade 1' => [
-                'Easy' => 'Read simple CVC words (cat, dog, sun) and connect them to pictures.',
-                'Medium' => 'Read 2–3 short sentences (e.g., “The dog runs. The sun is hot.”) and answer yes/no questions.',
-                'Hard' => 'Read a short paragraph (4–5 sentences) and answer “Who, What, Where” comprehension questions.',
-            ],
-        ];
-
         // Get the "reading" question type
         $readingType = QuestionType::where('name', 'reading')->first();
         if (!$readingType) {
@@ -187,35 +171,5 @@ class QuizSeeder extends Seeder
                 });
             });
         });
-
-        // Seed activity-based quizzes
-        collect($activities)->each(function ($levels, $grade) use ($teacher, $readingType) {
-            collect($levels)->each(function ($description, $difficulty) use ($grade, $teacher, $readingType) {
-                $quiz = Quiz::create([
-                    'teacher_id'   => $teacher->id,
-                    'title'        => "$grade Reading Activity - $difficulty",
-                    'instructions' => 'Follow the activity and answer accordingly.',
-                    'grade_level'  => $grade,
-                    'difficulty'   => $difficulty,
-                    'time_limit'   => 10,
-                    'is_active'    => true,
-                ]);
-
-                $question = Question::create([
-                    'quiz_id'          => $quiz->id,
-                    'question_type_id' => $readingType->id,
-                    'question_text'    => $description,
-                    'points'           => 1,
-                ]);
-
-                Choice::create([
-                    'question_id' => $question->id,
-                    'choice_text' => $description,
-                    'is_correct'  => true,
-                ]);
-            });
-        });
-
-        $this->command->info('Reading quizzes (sentences + activities + intro) seeded successfully!');
     }
 }
