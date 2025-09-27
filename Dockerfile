@@ -21,8 +21,12 @@ RUN composer install --no-dev --optimize-autoloader
 # Set proper permissions (important for Laravel's storage/logs)
 RUN chmod -R 775 storage bootstrap/cache
 
+# Copy entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Expose Laravel default port
 EXPOSE 8000
 
-# Start Laravel server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Use entrypoint script to handle startup
+ENTRYPOINT ["entrypoint.sh"]
