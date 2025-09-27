@@ -56,7 +56,7 @@ class QuizController extends Controller
                 'instructions' => $request->instructions,
                 'grade_level'  => $request->grade_level,
                 'difficulty'   => $request->difficulty,
-                'time_limit'   => $request->time_limit,
+                'time_limit'   => $request->time_limit ?? 10,
                 'is_active'    => $request->is_active ?? true,
             ]);
 
@@ -155,7 +155,7 @@ class QuizController extends Controller
                 'instructions' => $request->instructions,
                 'grade_level'  => $request->grade_level,
                 'difficulty'   => $request->difficulty,
-                'time_limit'   => $request->time_limit,
+                'time_limit'   => $request->time_limit ?? 10,
                 'is_active'    => $request->is_active ?? true,
             ]);
 
