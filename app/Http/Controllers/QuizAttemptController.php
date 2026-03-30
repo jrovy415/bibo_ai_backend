@@ -62,9 +62,9 @@ class QuizAttemptController extends Controller
 
                 $attempt = $this->model->updateOrCreate(
                     [
-                        'quiz_id'    => $quiz->id,
-                        'student_id' => $auth->id,
-                        'completed_at' => null, // only reuse if still incomplete
+                        'quiz_id'      => $quiz->id,
+                        'student_id'   => $auth->id,
+                        'completed_at' => null,
                     ],
                     [
                         ...$data,
@@ -119,61 +119,66 @@ class QuizAttemptController extends Controller
 
         try {
             $attempt = QuizAttempt::with('quiz', 'student')->findOrFail($id);
-            $quiz = $attempt->quiz;
+            $quiz    = $attempt->quiz;
             $student = $attempt->student;
 
-            // Calculate score
+            // Calculate number of correct answers
             $score = Answer::where('attempt_id', $attempt->id)
                 ->where('is_correct', true)
                 ->count();
-            $totalItems = $quiz->questions()->count();
 
             $attempt->update([
-                'score' => $score,
+                'score'        => $score,
                 'completed_at' => now(),
             ]);
 
-            // --- Difficulty progression ---
+            // -----------------------------------------------
+            // Score-based difficulty progression
+            //   Score 0 – 3  → Easy
+            //   Score 4 – 6  → Medium
+            //   Score 7 – 10 → Hard
+            // -----------------------------------------------
             $newDifficulty = null;
 
             if ($quiz->difficulty === 'Introduction') {
-                $newDifficulty = 'Easy';
+                if ($score >= 7) {
+                    $newDifficulty = 'Hard';
+                } elseif ($score >= 4) {
+                    $newDifficulty = 'Medium';
+                } else {
+                    $newDifficulty = 'Easy';
+                }
             }
 
             if ($quiz->difficulty === 'Easy') {
-                $allEasyPerfected = Quiz::where('grade_level', $student->grade_level)
-                    ->where('difficulty', 'Easy')
-                    ->whereDoesntHave('quizAttempt', function ($q) use ($student) {
-                        $q->where('student_id', $student->id)
-                            ->whereNotNull('completed_at')
-                            ->whereColumn('score', DB::raw('(select count(*) from questions where questions.quiz_id = quizzes.id)'));
-                    })
-                    ->doesntExist();
-
-                $newDifficulty = $allEasyPerfected ? 'Medium' : 'Easy';
+                if ($score >= 7) {
+                    $newDifficulty = 'Medium'; // magaling → umakyat
+                } elseif ($score >= 4) {
+                    $newDifficulty = 'Easy';   // okay → manatili
+                } else {
+                    $newDifficulty = 'Easy';   // mahirap → manatili pa rin
+                }
             }
 
             if ($quiz->difficulty === 'Medium') {
-                $allMediumPerfected = Quiz::where('grade_level', $student->grade_level)
-                    ->where('difficulty', 'Medium')
-                    ->whereDoesntHave('quizAttempt', function ($q) use ($student) {
-                        $q->where('student_id', $student->id)
-                            ->whereNotNull('completed_at')
-                            ->whereColumn('score', DB::raw('(select count(*) from questions where questions.quiz_id = quizzes.id)'));
-                    })
-                    ->doesntExist();
-
-                $newDifficulty = $allMediumPerfected ? 'Hard' : 'Medium';
+                if ($score >= 7) {
+                    $newDifficulty = 'Hard';   // magaling → umakyat
+                } elseif ($score >= 4) {
+                    $newDifficulty = 'Medium'; // okay → manatili
+                } else {
+                    $newDifficulty = 'Easy';   // mahirap → bumagsak
+                }
             }
 
             if ($quiz->difficulty === 'Hard') {
-                $newDifficulty = 'Hard'; // end of progression
+                // End of progression — student stays at Hard
+                $newDifficulty = 'Hard';
             }
 
-            // Save/update student's current difficulty
+            // Save / update the student's current difficulty level
             if ($newDifficulty) {
                 StudentDifficulty::updateOrCreate(
-                    ['student_id' => $student->id], // 👈 1 row per student
+                    ['student_id' => $student->id],
                     ['difficulty' => $newDifficulty]
                 );
             }
@@ -218,7 +223,7 @@ class QuizAttemptController extends Controller
 
             if ($isLatest) {
                 $quizAttempts = QuizAttempt::where('student_id', $studentId)
-                    ->latest() // defaults to created_at
+                    ->latest()
                     ->first();
             } else {
                 $quizAttempts = QuizAttempt::where('student_id', $studentId)->get();
