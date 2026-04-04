@@ -64,7 +64,7 @@ class QuizAttemptController extends Controller
                     [
                         'quiz_id'      => $quiz->id,
                         'student_id'   => $auth->id,
-                        'completed_at' => null,
+                        'completed_at' => null, // only reuse if still incomplete
                     ],
                     [
                         ...$data,
@@ -141,38 +141,39 @@ class QuizAttemptController extends Controller
             $newDifficulty = null;
 
             if ($quiz->difficulty === 'Introduction') {
+                // Place the student based on their intro quiz score
                 if ($score >= 7) {
                     $newDifficulty = 'Hard';
                 } elseif ($score >= 4) {
                     $newDifficulty = 'Medium';
                 } else {
-                    $newDifficulty = 'Easy';
+                    $newDifficulty = 'Easy'; // score 0 – 3
                 }
             }
 
             if ($quiz->difficulty === 'Easy') {
                 if ($score >= 7) {
-                    $newDifficulty = 'Medium'; // magaling → umakyat
+                    $newDifficulty = 'Medium';
                 } elseif ($score >= 4) {
-                    $newDifficulty = 'Easy';   // okay → manatili
+                    $newDifficulty = 'Medium';
                 } else {
-                    $newDifficulty = 'Easy';   // mahirap → manatili pa rin
+                    $newDifficulty = 'Medium'; // stay on Easy
                 }
             }
 
             if ($quiz->difficulty === 'Medium') {
                 if ($score >= 7) {
-                    $newDifficulty = 'Hard';   // magaling → umakyat
+                    $newDifficulty = 'Hard';
                 } elseif ($score >= 4) {
-                    $newDifficulty = 'Medium'; // okay → manatili
+                    $newDifficulty = 'Hard'; // stay on Medium
                 } else {
-                    $newDifficulty = 'Easy';   // mahirap → bumagsak
+                    $newDifficulty = 'Hard'; // regress back to Easy
                 }
             }
 
             if ($quiz->difficulty === 'Hard') {
                 // End of progression — student stays at Hard
-                $newDifficulty = 'Hard';
+                $newDifficulty = null;
             }
 
             // Save / update the student's current difficulty level
@@ -240,5 +241,5 @@ class QuizAttemptController extends Controller
                 Response::HTTP_INTERNAL_SERVER_ERROR
             );
         }
-    }
+        }
 }

@@ -274,7 +274,7 @@ class QuizController extends Controller
                 ->first();
 
             if ($incompleteAttempt) {
-                $quiz = $incompleteAttempt->quiz()->with('questions.choices')->first();
+                $quiz = $incompleteAttempt->quiz()->with(['questions.choices', 'questions.questionType', 'material'])->first();
 
                 return $this->responseService->resolveResponse(
                     'Resuming incomplete quiz',
@@ -285,15 +285,15 @@ class QuizController extends Controller
             // 2. Current difficulty (default: Introduction)
             $currentDifficulty = $student->currentDifficulty?->difficulty ?? 'Introduction';
 
-            // 3. Try to get next quiz
+            // 3. Try to get next quiz — exclude any quiz the student has
+            //    already COMPLETED (regardless of score, not just perfect score)
             $nextQuiz = Quiz::where('grade_level', $student->grade_level)
                 ->where('difficulty', $currentDifficulty)
                 ->whereDoesntHave('quizAttempt', function ($query) use ($student) {
                     $query->where('student_id', $student->id)
-                        ->whereNotNull('completed_at')
-                        ->whereRaw('quiz_attempts.score = (select count(*) from questions where questions.quiz_id = quiz_attempts.quiz_id)');
+                        ->whereNotNull('completed_at'); // <-- removed perfect score condition
                 })
-                ->with('questions.choices')
+                ->with(['questions.choices', 'questions.questionType', 'material'])
                 ->first();
 
             if ($nextQuiz) {
@@ -303,11 +303,11 @@ class QuizController extends Controller
                 );
             }
 
-            // 4. If no quiz left, fetch ALL quizzes for the student's grade level
+            // 4. No quiz left — fetch ALL quizzes for the student's grade level
             $allQuizzes = Quiz::where('grade_level', $student->grade_level)
-                ->with(['questions.choices', 'latestQuizAttempt'])
+                ->with(['questions.choices', 'questions.questionType', 'latestQuizAttempt'])
                 ->get()
-                ->groupBy('difficulty'); // optional: group by difficulty for frontend
+                ->groupBy('difficulty');
 
             if ($allQuizzes->isEmpty()) {
                 return $this->responseService->resolveResponse(
