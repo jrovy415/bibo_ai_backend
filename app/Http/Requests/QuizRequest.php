@@ -19,7 +19,7 @@ class QuizRequest extends FormRequest
             'title' => 'required|string|max:255',
             'instructions' => 'nullable|string',
             'grade_level' => 'required|string',
-            'difficulty' => 'required|in:Introduction,Easy,Medium,Hard',
+            'difficulty' => 'required|in:Introduction,Easy,Medium,Hard,Expert,PostTest',
             'time_limit' => 'nullable|integer|min:1',
             'is_active' => 'boolean',
 

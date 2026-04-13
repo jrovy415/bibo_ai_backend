@@ -12,9 +12,11 @@ class StudentDifficulty extends Model
     protected $table = 'student_difficulties';
 
     protected $fillable = [
-        'student_id',
-        'difficulty',
-    ];
+    'student_id',
+    'difficulty',
+];
+
+public $timestamps = true;
 
     protected $primaryKey = 'student_id';
     public $incrementing = false; // because we don't use an id column

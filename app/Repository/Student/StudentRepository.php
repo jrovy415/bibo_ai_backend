@@ -23,8 +23,17 @@ class StudentRepository extends BaseRepository implements StudentRepositoryInter
         $student = $this->model->where('nickname', $nickname)->first();
 
         if (!$student) {
+            // New student - create normally
             $student = $this->model->create($attributes)->fresh();
             $this->auditLogService->insertLog($this->model, 'create', $attributes);
+        } else {
+            // Existing student - update grade_level and section on every login
+            // This ensures the correct quizzes are shown for their grade level
+            $student->update([
+                'grade_level' => $attributes['grade_level'],
+                'section'     => $attributes['section'],
+            ]);
+            $student = $student->fresh();
         }
 
         // Revoke existing tokens
