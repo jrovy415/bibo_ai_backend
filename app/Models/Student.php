@@ -20,9 +20,12 @@ class Student extends Model
         'grade_level',
         'section',
         'slug',
+        'is_locked',
     ];
 
-    // protected $with = ['currentDificulty'];
+    protected $casts = [
+        'is_locked' => 'boolean',
+    ];
 
     protected static function booted()
     {
@@ -48,11 +51,13 @@ class Student extends Model
         });
     }
 
-    /**
-     * A student’s current/active difficulty (latest one).
-     */
     public function currentDifficulty(): HasOne
     {
         return $this->hasOne(StudentDifficulty::class, 'student_id', 'id');
+    }
+
+    public function quizAttempts()
+    {
+        return $this->hasMany(QuizAttempt::class, 'student_id', 'id');
     }
 }

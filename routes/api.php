@@ -7,17 +7,15 @@ use App\Http\Controllers\QuestionTypeController;
 use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Student\StudentController;
+use App\Http\Controllers\StudentProgressController;
+use App\Http\Controllers\QuizFeedbackController;
+use App\Http\Controllers\StudentLockController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
 // Unauthenticated
@@ -47,6 +45,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('choices', ChoiceController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('answers', AnswerController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('question-types', QuestionTypeController::class);
+
+    // Student Progression — per-student journey tracking
+    Route::get('/student-progress', [StudentProgressController::class, 'index']);
+
+    // Student lock/unlock
+    Route::patch('/students/{student}/lock',   [StudentLockController::class, 'lock']);
+    Route::patch('/students/{student}/unlock', [StudentLockController::class, 'unlock']);
+    Route::get('/quiz-feedbacks',   [QuizFeedbackController::class, 'index']);
+    Route::post('/quiz-feedbacks',  [QuizFeedbackController::class, 'store']);
 
     $routes = [
         'user/user',
