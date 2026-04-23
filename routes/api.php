@@ -10,6 +10,7 @@ use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\StudentProgressController;
 use App\Http\Controllers\QuizFeedbackController;
 use App\Http\Controllers\StudentLockController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,6 +53,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Student lock/unlock
     Route::patch('/students/{student}/lock',   [StudentLockController::class, 'lock']);
     Route::patch('/students/{student}/unlock', [StudentLockController::class, 'unlock']);
+
+    // ✅ Student difficulty — get and update
+    Route::get('/students/{student}/difficulty',   [StudentController::class, 'getDifficulty']);
+    Route::patch('/students/{student}/difficulty', [StudentController::class, 'updateDifficulty']);
+
+    // Notifications (polling)
+    Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/quiz-feedbacks',   [QuizFeedbackController::class, 'index']);
     Route::post('/quiz-feedbacks',  [QuizFeedbackController::class, 'store']);
 

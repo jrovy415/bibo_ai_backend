@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Services\Utils\ResponseServiceInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class StudentLockController extends Controller
@@ -24,8 +25,18 @@ class StudentLockController extends Controller
     {
         try {
             $student->update(['is_locked' => true]);
-            // Revoke all tokens so student is logged out immediately
             $student->tokens()->delete();
+
+            // ✅ Reset difficulty to Introduction so next retake starts from Pre-Test
+            DB::table('student_difficulties')
+                ->updateOrInsert(
+                    ['student_id' => $student->id],
+                    [
+                        'difficulty'  => 'Introduction',
+                        'updated_at'  => now(),
+                        'created_at'  => now(),
+                    ]
+                );
 
             return $this->responseService->resolveResponse(
                 'Student account locked successfully',
@@ -42,12 +53,25 @@ class StudentLockController extends Controller
 
     /**
      * PATCH /students/{student}/unlock
-     * Unlock a student account
+     * Unlock a student account and reset difficulty to Introduction
+     * so the student can retake from Pre-Test
      */
     public function unlock(Student $student)
     {
         try {
+            // Unlock the account
             $student->update(['is_locked' => false]);
+
+            // ✅ Reset difficulty back to Introduction so student starts from Pre-Test
+            DB::table('student_difficulties')
+                ->updateOrInsert(
+                    ['student_id' => $student->id],
+                    [
+                        'difficulty'  => 'Introduction',
+                        'updated_at'  => now(),
+                        'created_at'  => now(),
+                    ]
+                );
 
             return $this->responseService->resolveResponse(
                 'Student account unlocked successfully',

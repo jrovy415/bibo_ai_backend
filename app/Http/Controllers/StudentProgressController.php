@@ -23,13 +23,11 @@ class StudentProgressController extends Controller
             $gradeLevel = $request->input('grade_level');
             $section    = $request->input('section');
 
-            // Fetch all students with their difficulty
             $studentsQuery = Student::with('currentDifficulty');
             if ($gradeLevel) $studentsQuery->where('grade_level', $gradeLevel);
             if ($section)    $studentsQuery->where('section', $section);
             $students = $studentsQuery->get();
 
-            // Fetch all completed attempts with quiz info in one query
             $studentIds = $students->pluck('id');
             $attempts   = DB::table('quiz_attempts')
                 ->join('quizzes', 'quizzes.id', '=', 'quiz_attempts.quiz_id')
@@ -48,16 +46,32 @@ class StudentProgressController extends Controller
                 ->get()
                 ->groupBy('student_id');
 
-            // Fetch question counts per quiz
-            $quizIds       = $attempts->flatten()->pluck('quiz_id')->unique();
+            $quizIds        = $attempts->flatten()->pluck('quiz_id')->unique();
             $questionCounts = DB::table('questions')
                 ->whereIn('quiz_id', $quizIds)
                 ->select('quiz_id', DB::raw('COUNT(*) as total'))
                 ->groupBy('quiz_id')
                 ->pluck('total', 'quiz_id');
 
-            $difficultyOrder  = ['Introduction','Easy','Medium','Hard','Expert','PostTest'];
-            $readingAssess    = ['Introduction','PostTest'];
+            // ✅ FIXED: Full difficulty order including all PostTest variants
+            $difficultyOrder = [
+                'Introduction',
+                'Easy', 'EasyPostTest',
+                'Medium', 'MediumPostTest',
+                'Hard', 'HardPostTest',
+                'Expert', 'ExpertPostTest',
+                'PostTest',
+            ];
+
+            // ✅ FIXED: All reading assessments where score is stored as 0-100 percentage
+            $readingAssess = [
+                'Introduction',
+                'EasyPostTest',
+                'MediumPostTest',
+                'HardPostTest',
+                'ExpertPostTest',
+                'PostTest',
+            ];
 
             $result = $students->map(function ($student) use (
                 $attempts, $questionCounts, $difficultyOrder, $readingAssess
@@ -72,7 +86,9 @@ class StudentProgressController extends Controller
                     $score = (int) ($attempt->score ?? 0);
                     $total = (int) ($questionCounts[$attempt->quiz_id] ?? 1);
 
+                    // ✅ FIXED: Reading assessments include all PostTest variants
                     $isReading = in_array($diff, $readingAssess);
+
                     // Reading assessments: score is already 0-100 percentage
                     // Other levels: score / total questions * 100
                     $pct = $isReading
@@ -96,14 +112,25 @@ class StudentProgressController extends Controller
                     $journey[$diff] = $levelMap[$diff] ?? null;
                 }
 
-                // Improvement: Post-Test % - Pre-Test %
+                // ✅ FIXED: Improvement compares Pre-Test vs the latest PostTest taken
+                // Check all PostTest variants and use the most recent one
                 $prePct  = $journey['Introduction']['pct'] ?? null;
-                $postPct = $journey['PostTest']['pct']     ?? null;
+
+                // Find the latest PostTest score (any variant)
+                $postTestDiffs = ['EasyPostTest','MediumPostTest','HardPostTest','ExpertPostTest','PostTest'];
+                $postPct = null;
+                foreach ($postTestDiffs as $ptDiff) {
+                    if (isset($journey[$ptDiff]) && $journey[$ptDiff] !== null) {
+                        $postPct = $journey[$ptDiff]['pct'];
+                        break; // Use the first (lowest) PostTest found in order
+                    }
+                }
+
                 $improvement = ($prePct !== null && $postPct !== null)
                     ? $postPct - $prePct
                     : null;
 
-                // Overall average of completed levels
+                // Overall average of all completed levels
                 $completedPcts = array_values(array_filter(
                     array_map(fn($v) => $v['pct'] ?? null, array_filter($journey)),
                     fn($v) => $v !== null

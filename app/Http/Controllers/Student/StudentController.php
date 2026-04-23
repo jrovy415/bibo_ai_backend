@@ -68,8 +68,9 @@ class StudentController extends Controller
 
     public function updateDifficulty(Request $request, Student $student)
     {
+        // ✅ FIXED: Added all PostTest variants to validation
         $request->validate([
-            'difficulty' => 'required|string|in:Introduction,Easy,Medium,Hard,Expert,PostTest',
+            'difficulty' => 'required|string|in:Introduction,Easy,EasyPostTest,Medium,MediumPostTest,Hard,HardPostTest,Expert,ExpertPostTest,PostTest',
         ]);
 
         StudentDifficulty::updateOrCreate(

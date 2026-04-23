@@ -16,44 +16,35 @@ class QuizRequest extends FormRequest
     {
         return [
             // Quiz fields
-            'title' => 'required|string|max:255',
+            'title'        => 'required|string|max:255',
             'instructions' => 'nullable|string',
-            'grade_level' => 'required|string',
-            'difficulty' => 'required|in:Introduction,Easy,Medium,Hard,Expert,PostTest',
-            'time_limit' => 'nullable|integer|min:1',
-            'is_active' => 'boolean',
+            'grade_level'  => 'required|string',
+
+            // ✅ FIXED: Added EasyPostTest, MediumPostTest, HardPostTest, ExpertPostTest
+            'difficulty'   => 'required|in:Introduction,Easy,EasyPostTest,Medium,MediumPostTest,Hard,HardPostTest,Expert,ExpertPostTest,PostTest',
+
+            'time_limit'   => 'nullable|integer|min:1',
+            'is_active'    => 'boolean',
 
             // Questions
-            'questions' => 'sometimes|array',
-            'questions.*.question_text' => 'nullable|string',
-            'questions.*.choice_text' => 'nullable|string',
-            'questions.*.question_type_id' => 'required|exists:question_types,id',
-            'questions.*.points' => 'required|integer|min:1',
+            'questions'                          => 'sometimes|array',
+            'questions.*.question_text'          => 'nullable|string',
+            'questions.*.choice_text'            => 'nullable|string',
+            'questions.*.question_type_id'       => 'required|exists:question_types,id',
+            'questions.*.points'                 => 'required|integer|min:1',
 
-            // Replace the current photo validation rule with:
+            // Photo
             'questions.*.photo' => [
                 'nullable',
                 function ($attribute, $value, $fail) {
-                    if ($value === null) {
-                        return;
-                    }
-
-                    // Allow string filenames (after upload)
-                    if (is_string($value)) {
-                        return;
-                    }
-
-                    // Allow direct file upload
-                    if ($value instanceof \Illuminate\Http\UploadedFile) {
-                        return;
-                    }
-
-                    // Otherwise fail
+                    if ($value === null) return;
+                    if (is_string($value)) return;
+                    if ($value instanceof \Illuminate\Http\UploadedFile) return;
                     $fail("The {$attribute} must be a string filename, an uploaded file, or null.");
                 },
             ],
 
-            // Choices (only required if multiple choice)
+            // Choices
             'questions.*.choices' => [
                 'array',
                 function ($attribute, $value, $fail) {
@@ -78,11 +69,11 @@ class QuizRequest extends FormRequest
             ],
 
             'questions.*.choices.*.choice_text' => 'required_with:questions.*.choices|string',
-            'questions.*.choices.*.is_correct' => 'boolean',
+            'questions.*.choices.*.is_correct'  => 'boolean',
 
-            'material' => 'nullable|array',
-            'material.title' => 'required_with:material|string',
-            'material.type' => 'required_with:material|in:youtube,story,link',
+            'material'         => 'nullable|array',
+            'material.title'   => 'required_with:material|string',
+            'material.type'    => 'required_with:material|in:youtube,story,link',
             'material.content' => 'required_with:material|string',
         ];
     }
@@ -90,11 +81,12 @@ class QuizRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'title.required' => 'The quiz title is required.',
-            'difficulty.in' => 'Difficulty must be one of Introduction, Easy, Medium, or Hard.',
-            'questions.*.question_text.required' => 'Each question must have text.',
-            'questions.*.question_type_id.exists' => 'Invalid question type selected.',
-            'questions.*.choices.*.choice_text.required_with' => 'Choice text is required for each choice.',
+            'title.required'                                   => 'The quiz title is required.',
+            // ✅ FIXED: Updated error message to reflect all valid difficulties
+            'difficulty.in'                                    => 'Difficulty must be one of: Introduction, Easy, EasyPostTest, Medium, MediumPostTest, Hard, HardPostTest, Expert, ExpertPostTest, or PostTest.',
+            'questions.*.question_text.required'               => 'Each question must have text.',
+            'questions.*.question_type_id.exists'              => 'Invalid question type selected.',
+            'questions.*.choices.*.choice_text.required_with'  => 'Choice text is required for each choice.',
         ];
     }
 }

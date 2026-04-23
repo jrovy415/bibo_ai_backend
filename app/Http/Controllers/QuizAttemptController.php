@@ -118,33 +118,37 @@ class QuizAttemptController extends Controller
         DB::beginTransaction();
 
         try {
-            // Load quiz with questions so we can calculate total possible points
             $attempt   = QuizAttempt::with('quiz.questions')->findOrFail($id);
             $quiz      = $attempt->quiz;
             $studentId = $attempt->student_id;
 
-            // ── Calculate score ──────────────────────────────────────────────
-            // Pre-Test (Introduction) and Post-Test ALWAYS use word_score
-            // because they are reading assessments with partial credit.
-            // All other levels respect use_word_scoring per question:
-            //   - use_word_scoring = true  -> use word_score (partial credit)
-            //   - use_word_scoring = false -> use is_correct x points (exact match)
-            $answers = Answer::where('attempt_id', $attempt->id)->get();
-            $isReadingAssessment = in_array($quiz->difficulty, ['Introduction', 'PostTest']);
+            // ── Reading assessment difficulties (word_score = 0-100 percentage) ──
+            $readingAssessmentDifficulties = [
+                'Introduction',
+                'EasyPostTest',
+                'MediumPostTest',
+                'HardPostTest',
+                'ExpertPostTest',
+                'PostTest',
+            ];
 
-            // For reading assessments, word_score is stored as 0-100 percentage per question.
-            // We average these percentages to get the overall score (also 0-100).
-            // For other quizzes, word_score is raw points or is_correct * points.
+            $isReadingAssessment = in_array($quiz->difficulty, $readingAssessmentDifficulties);
+
+            $answers = Answer::where('attempt_id', $attempt->id)->get();
+
+            // ── Score calculation ─────────────────────────────────────────────
             if ($isReadingAssessment) {
+                // Reading assessments: word_score per question is 0-100 percentage
+                // Final score = average of all word_scores (also 0-100)
                 $totalPct = 0;
                 $count    = 0;
                 foreach ($answers as $answer) {
-                    $totalPct += (int) ($answer->word_score ?? 0); // each is 0-100
+                    $totalPct += (int) ($answer->word_score ?? 0);
                     $count++;
                 }
-                // score = average percentage across all questions (0-100)
                 $score = $count > 0 ? round($totalPct / $count) : 0;
             } else {
+                // Regular level quizzes: use word_score (partial) or is_correct (exact)
                 $score = 0;
                 foreach ($answers as $answer) {
                     $question = $quiz->questions->firstWhere('id', $answer->question_id);
@@ -163,20 +167,41 @@ class QuizAttemptController extends Controller
             ]);
 
             // ── Difficulty progression ────────────────────────────────────────
+            // Flow:
+            //   Pre-Test (Introduction) → placement (Easy/Medium/Hard/Expert)
+            //   Easy        → EasyPostTest     (regardless of score)
+            //   EasyPostTest → done (student finished their journey)
+            //   Medium      → MediumPostTest   (regardless of score)
+            //   MediumPostTest → done
+            //   Hard        → HardPostTest     (regardless of score)
+            //   HardPostTest → done
+            //   Expert      → ExpertPostTest   (regardless of score)
+            //   ExpertPostTest → done
+            //   PostTest → done (no further advancement)
+
+            // ✅ Map each reading level to its own PostTest
+            $levelToPostTest = [
+                'Easy'   => 'EasyPostTest',
+                'Medium' => 'MediumPostTest',
+                'Hard'   => 'HardPostTest',
+                'Expert' => 'ExpertPostTest',
+            ];
+
+            // ✅ PostTest difficulties that mark end of journey
+            $terminalDifficulties = [
+                'EasyPostTest',
+                'MediumPostTest',
+                'HardPostTest',
+                'ExpertPostTest',
+                'PostTest',
+            ];
+
             $newDifficulty = null;
 
             if ($quiz->difficulty === 'Introduction') {
                 // ── Pre-Test: percentage-based placement ──────────────────────
-                // Thresholds:
-                //   >= 80% → Expert
-                //   >= 60% → Hard
-                //   >= 40% → Medium
-                //    < 40% → Easy
-                // For reading assessments, word_score is stored as:
-                // Math.round((matchedWords / totalWords) * questionPoints)
-                // So total score / total possible points = match percentage
-                // score is already 0-100 average percentage for reading assessments
-                $percentage = $score; // score IS the percentage
+                // score IS the 0-100 average percentage for reading assessments
+                $percentage = $score;
                 \Log::info("Pre-Test placement: pct={$percentage}%");
 
                 if ($percentage >= 80) {
@@ -189,47 +214,21 @@ class QuizAttemptController extends Controller
                     $newDifficulty = 'Easy';
                 }
 
-            } elseif ($quiz->difficulty === 'PostTest') {
-                // ── Post-Test: no further advancement needed ──────────────────
-                // Student has completed everything. Do not change difficulty.
+            } elseif (in_array($quiz->difficulty, $terminalDifficulties)) {
+                // ── PostTest / terminal level: no further advancement ─────────
+                // Note: Auto-lock is handled by the frontend Finish button
+                // which calls /students/{id}/lock before logging out.
+                // This keeps the results page accessible after completing PostTest.
                 $newDifficulty = null;
 
+            } elseif (isset($levelToPostTest[$quiz->difficulty])) {
+                // ── Regular level (Easy/Medium/Hard/Expert) ───────────────────
+                // REGARDLESS of score, always advance to that level's PostTest
+                $newDifficulty = $levelToPostTest[$quiz->difficulty];
+
             } else {
-                // ── Regular level (Easy / Medium / Hard / Expert) ─────────────
-                //
-                // KEY FIX: After finishing their assigned level, the student
-                // goes directly to PostTest — NOT the next level in the sequence.
-                //
-                // How it works:
-                //   1. Get the student's currently assigned difficulty
-                //      (set by the Pre-Test placement or a previous advance).
-                //   2. If the quiz they just finished matches their assigned
-                //      difficulty, advance them to PostTest.
-                //   3. This means:
-                //        Pre-Test → Easy   assigned → finish Easy   → PostTest ✅
-                //        Pre-Test → Medium assigned → finish Medium → PostTest ✅
-                //        Pre-Test → Hard   assigned → finish Hard   → PostTest ✅
-                //        Pre-Test → Expert assigned → finish Expert → PostTest ✅
-
-                // Get the student's assigned difficulty from student_difficulties table
-                $studentDifficulty = DB::table('student_difficulties')
-                    ->where('student_id', $studentId)
-                    ->value('difficulty');
-
-                // If the quiz difficulty matches the student's assigned level,
-                // they have completed their required level → go to PostTest.
-                if ($studentDifficulty && $quiz->difficulty === $studentDifficulty) {
-                    $newDifficulty = 'PostTest';
-                } else {
-                    // Fallback: if for some reason the difficulties don't match
-                    // (e.g. student retaking a lower level), just advance normally.
-                    $difficultySequence = ['Easy', 'Medium', 'Hard', 'Expert', 'PostTest'];
-                    $currentIdx = array_search($quiz->difficulty, $difficultySequence);
-
-                    if ($currentIdx !== false && isset($difficultySequence[$currentIdx + 1])) {
-                        $newDifficulty = $difficultySequence[$currentIdx + 1];
-                    }
-                }
+                // ── Fallback: unknown difficulty, just stay put ───────────────
+                $newDifficulty = null;
             }
 
             // Save the new difficulty level for the student
@@ -243,6 +242,8 @@ class QuizAttemptController extends Controller
                             'created_at' => now(),
                         ]
                     );
+
+                \Log::info("Student {$studentId} advanced from {$quiz->difficulty} to {$newDifficulty}");
             }
 
             DB::commit();
