@@ -17,6 +17,11 @@ fi
 # Create symlink (ignore error if it already exists)
 php artisan storage:link || true
 
+# Clear old cache first
+php artisan config:clear || true
+php artisan cache:clear || true
+php artisan route:clear || true
+
 # Run migrations automatically
 php artisan migrate --force || true
 
