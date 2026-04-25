@@ -24,5 +24,5 @@ php artisan migrate --force || true
 php artisan config:cache || true
 php artisan route:cache || true
 
-# Start Apache
-exec apache2-foreground
+# Start Laravel server
+exec php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
