@@ -11,6 +11,7 @@ use App\Http\Controllers\StudentProgressController;
 use App\Http\Controllers\QuizFeedbackController;
 use App\Http\Controllers\StudentLockController;
 use App\Http\Controllers\NotificationController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -74,4 +75,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     foreach ($routes as $route) {
         Route::group([], base_path("routes/api/{$route}.php"));
     }
+});
+
+// ⚠️ TEMPORARY — Delete this route after seeding!
+Route::get('/run-seeder', function () {
+    Artisan::call('db:seed');
+    return response()->json(['message' => 'Seeded successfully!']);
 });
