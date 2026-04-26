@@ -60,7 +60,6 @@ class QuizController extends Controller
                 'is_active'    => $request->is_active ?? true,
             ]);
 
-            // Save material if provided
             if ($request->filled('material')) {
                 QuizMaterial::create([
                     'quiz_id' => $quiz->id,
@@ -76,7 +75,8 @@ class QuizController extends Controller
                     'question_text'    => $questionData['question_text'],
                     'question_type_id' => $questionData['question_type_id'],
                     'points'           => $questionData['points'],
-                    'photo'            => $questionData['photo']
+                    'photo'            => $questionData['photo'] ?? null,
+                    'use_word_scoring' => $questionData['use_word_scoring'] ?? false,
                 ]);
 
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
@@ -159,10 +159,7 @@ class QuizController extends Controller
                 'is_active'    => $request->is_active ?? true,
             ]);
 
-            // wipe old questions + choices
             $quiz->questions()->delete();
-
-            // wipe old materials
             $quiz->material()->delete();
 
             collect($request->questions)->map(function ($questionData) use ($quiz) {
@@ -171,13 +168,12 @@ class QuizController extends Controller
                     'question_text'    => $questionData['question_text'],
                     'question_type_id' => $questionData['question_type_id'],
                     'points'           => $questionData['points'],
-                    'photo'            => $questionData['photo']
+                    'photo'            => $questionData['photo'] ?? null,
+                    'use_word_scoring' => $questionData['use_word_scoring'] ?? false,
                 ]);
 
-                // handle photo upload
                 $this->handlePhotoUpload($quiz->id, $question, $questionData);
 
-                // handle choices
                 collect($questionData['choices'] ?? [])->map(function ($choiceData) use ($question) {
                     Choice::create([
                         'question_id' => $question->id,
@@ -230,13 +226,11 @@ class QuizController extends Controller
                 );
             }
 
-            // Delete related questions and choices
             foreach ($quiz->questions as $question) {
                 $question->choices()->delete();
                 $question->delete();
             }
 
-            // Delete related reading materials (if you added that table)
             if (method_exists($quiz, 'material')) {
                 $quiz->material()->delete();
             }
@@ -265,6 +259,16 @@ class QuizController extends Controller
     {
         $student = Auth::user();
 
+        $difficultySequence = [
+            'Introduction',
+            'Easy',   'EasyPostTest',
+            'Medium', 'MediumPostTest',
+            'Hard',   'HardPostTest',
+            'Expert', 'ExpertPostTest',
+        ];
+
+        $postTestDifficulties = ['EasyPostTest','MediumPostTest','HardPostTest','ExpertPostTest','PostTest'];
+
         try {
             // 1. Resume incomplete attempt
             $incompleteAttempt = QuizAttempt::where('student_id', $student->id)
@@ -274,7 +278,9 @@ class QuizController extends Controller
                 ->first();
 
             if ($incompleteAttempt) {
-                $quiz = $incompleteAttempt->quiz()->with('questions.choices')->first();
+                $quiz = $incompleteAttempt->quiz()
+                    ->with(['questions.choices', 'questions.questionType', 'material'])
+                    ->first();
 
                 return $this->responseService->resolveResponse(
                     'Resuming incomplete quiz',
@@ -282,18 +288,82 @@ class QuizController extends Controller
                 );
             }
 
-            // 2. Current difficulty (default: Introduction)
+            // 2. Get student's current difficulty
             $currentDifficulty = $student->currentDifficulty?->difficulty ?? 'Introduction';
 
-            // 3. Try to get next quiz
-            $nextQuiz = Quiz::where('grade_level', $student->grade_level)
-                ->where('difficulty', $currentDifficulty)
-                ->whereDoesntHave('quizAttempt', function ($query) use ($student) {
+            // 3. If student is at a Post-Test level and already completed it — all done
+            if (in_array($currentDifficulty, $postTestDifficulties)) {
+                $completedPostTest = Quiz::where('grade_level', $student->grade_level)
+                    ->where('difficulty', $currentDifficulty)
+                    ->whereHas('quizAttempt', function ($query) use ($student) {
+                        $query->where('student_id', $student->id)
+                              ->whereNotNull('completed_at');
+                    })
+                    ->with(['questions.choices', 'questions.questionType', 'material', 'latestQuizAttempt'])
+                    ->first();
+
+                if ($completedPostTest) {
+                    return $this->responseService->resolveResponse(
+                        'Level journey completed.',
+                        $completedPostTest
+                    );
+                }
+            }
+
+            // 4. ✅ FIXED: Special case for Introduction (Pre-Test) retake
+            if ($currentDifficulty === 'Introduction') {
+                $hasIncompleteIntro = QuizAttempt::where('student_id', $student->id)
+                    ->whereHas('quiz', fn($q) => $q->where('difficulty', 'Introduction')
+                        ->where('grade_level', $student->grade_level))
+                    ->whereNull('completed_at')
+                    ->exists();
+
+                if (!$hasIncompleteIntro) {
+                    $introQuiz = Quiz::where('grade_level', $student->grade_level)
+                        ->where('difficulty', 'Introduction')
+                        ->where('is_active', true)
+                        ->with(['questions.choices', 'questions.questionType', 'material', 'latestQuizAttempt'])
+                        ->first();
+
+                    if ($introQuiz) {
+                        return $this->responseService->resolveResponse(
+                            'Quiz retrieved successfully',
+                            $introQuiz
+                        );
+                    }
+                }
+            }
+
+            // ✅ FIXED: For retake detection — find the latest completed Introduction attempt
+            // Any quiz attempts BEFORE this date are from previous takes
+            // Only consider attempts AFTER the latest Introduction completion as "current take"
+            $latestIntroCompletion = QuizAttempt::where('student_id', $student->id)
+                ->whereHas('quiz', fn($q) => $q->where('difficulty', 'Introduction'))
+                ->whereNotNull('completed_at')
+                ->latest('completed_at')
+                ->value('completed_at');
+
+            // 5. Find next uncompleted quiz at current difficulty
+            // For retake: only look at attempts AFTER the latest Pre-Test completion
+            $nextQuizQuery = Quiz::where('grade_level', $student->grade_level)
+                ->where('difficulty', $currentDifficulty);
+
+            if ($latestIntroCompletion) {
+                // Only skip quizzes that were completed AFTER the latest Pre-Test
+                $nextQuizQuery->whereDoesntHave('quizAttempt', function ($query) use ($student, $latestIntroCompletion) {
                     $query->where('student_id', $student->id)
-                        ->whereNotNull('completed_at')
-                        ->whereRaw('quiz_attempts.score = (select count(*) from questions where questions.quiz_id = quiz_attempts.quiz_id)');
-                })
-                ->with('questions.choices')
+                          ->whereNotNull('completed_at')
+                          ->where('completed_at', '>', $latestIntroCompletion);
+                });
+            } else {
+                $nextQuizQuery->whereDoesntHave('quizAttempt', function ($query) use ($student) {
+                    $query->where('student_id', $student->id)
+                          ->whereNotNull('completed_at');
+                });
+            }
+
+            $nextQuiz = $nextQuizQuery
+                ->with(['questions.choices', 'questions.questionType', 'material'])
                 ->first();
 
             if ($nextQuiz) {
@@ -303,11 +373,65 @@ class QuizController extends Controller
                 );
             }
 
-            // 4. If no quiz left, fetch ALL quizzes for the student's grade level
+            // 6. Advance to next difficulty in sequence
+            if (in_array($currentDifficulty, $postTestDifficulties)) {
+                return $this->responseService->resolveResponse(
+                    'Level journey completed.',
+                    null,
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+
+            $currentIdx     = array_search($currentDifficulty, $difficultySequence);
+            $nextDifficulty = isset($difficultySequence[$currentIdx + 1])
+                ? $difficultySequence[$currentIdx + 1]
+                : null;
+
+            if ($nextDifficulty) {
+                try {
+                    \DB::table('student_difficulties')
+                        ->updateOrInsert(
+                            ['student_id' => $student->id],
+                            ['difficulty' => $nextDifficulty, 'updated_at' => now(), 'created_at' => now()]
+                        );
+                    $student->load('currentDifficulty');
+                } catch (\Exception $advanceErr) {
+                    \Log::warning("Could not auto-advance difficulty for student {$student->id}: " . $advanceErr->getMessage());
+                }
+
+                $nextLevelQuizQuery = Quiz::where('grade_level', $student->grade_level)
+                    ->where('difficulty', $nextDifficulty);
+
+                if ($latestIntroCompletion) {
+                    $nextLevelQuizQuery->whereDoesntHave('quizAttempt', function ($query) use ($student, $latestIntroCompletion) {
+                        $query->where('student_id', $student->id)
+                              ->whereNotNull('completed_at')
+                              ->where('completed_at', '>', $latestIntroCompletion);
+                    });
+                } else {
+                    $nextLevelQuizQuery->whereDoesntHave('quizAttempt', function ($query) use ($student) {
+                        $query->where('student_id', $student->id)
+                              ->whereNotNull('completed_at');
+                    });
+                }
+
+                $nextLevelQuiz = $nextLevelQuizQuery
+                    ->with(['questions.choices', 'questions.questionType', 'material'])
+                    ->first();
+
+                if ($nextLevelQuiz) {
+                    return $this->responseService->resolveResponse(
+                        "Advanced to {$nextDifficulty} level. Quiz retrieved.",
+                        $nextLevelQuiz
+                    );
+                }
+            }
+
+            // 7. Nothing left — show all quizzes
             $allQuizzes = Quiz::where('grade_level', $student->grade_level)
-                ->with(['questions.choices', 'latestQuizAttempt'])
+                ->with(['questions.choices', 'questions.questionType', 'latestQuizAttempt'])
                 ->get()
-                ->groupBy('difficulty'); // optional: group by difficulty for frontend
+                ->groupBy('difficulty');
 
             if ($allQuizzes->isEmpty()) {
                 return $this->responseService->resolveResponse(
@@ -321,6 +445,7 @@ class QuizController extends Controller
                 'All quizzes are completed. Showing all quizzes for retake.',
                 $allQuizzes
             );
+
         } catch (\Exception $e) {
             return $this->responseService->resolveResponse(
                 'Error retrieving quiz',
@@ -330,13 +455,10 @@ class QuizController extends Controller
         }
     }
 
-    /**
-     * Save photo under quizzes/{quizId} and update question.photo with filename
-     */
     private function handlePhotoUpload(string $quizId, Question $question, array $questionData): void
     {
         if (isset($questionData['photo']) && $questionData['photo'] instanceof UploadedFile) {
-            $path = $questionData['photo']->store("quizzes/{$quizId}", 'public');
+            $path     = $questionData['photo']->store("quizzes/{$quizId}", 'public');
             $filename = basename($path);
             $question->update(['photo' => $filename]);
         } elseif (!empty($questionData['existing_photo'])) {

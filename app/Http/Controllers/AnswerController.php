@@ -45,11 +45,11 @@ class AnswerController extends Controller
         try {
             $question = Question::findOrFail($request->question_id);
 
-            $readingType = QuestionType::where('name', 'reading')->first()?->id;
+            $readingType        = QuestionType::where('name', 'reading')->first()?->id;
             $multipleChoiceType = QuestionType::where('name', 'multiple_choice')->first()?->id;
-            $trueFalseType = QuestionType::where('name', 'true_false')->first()?->id;
+            $trueFalseType      = QuestionType::where('name', 'true_false')->first()?->id;
 
-            $choiceId = null;
+            $choiceId  = null;
             $isCorrect = false;
 
             if ($question->question_type_id === $readingType) {
@@ -69,7 +69,7 @@ class AnswerController extends Controller
                     };
 
                     $normalizedTranscript = $normalize($transcript);
-                    $normalizedChoice = $normalize($choice->choice_text);
+                    $normalizedChoice     = $normalize($choice->choice_text);
 
                     if ($normalizedTranscript === $normalizedChoice) {
                         return true;
@@ -82,12 +82,21 @@ class AnswerController extends Controller
                     return false;
                 });
 
-                $choiceId = $matchingChoice?->id;
+                $choiceId  = $matchingChoice?->id;
                 $isCorrect = $matchingChoice?->is_correct ?? false;
+
             } elseif (in_array($question->question_type_id, [$multipleChoiceType, $trueFalseType])) {
-                $choiceId = $request->choice_id;
+                $choiceId  = $request->choice_id;
                 $isCorrect = Choice::find($choiceId)?->is_correct ?? false;
             }
+
+            // ── FIX: include word_score sent from the frontend ──────────────
+            // For Pre-Test and Post-Test, the frontend calculates a word-by-word
+            // match score and sends it as `word_score`. We must save it here so
+            // QuizAttemptController@update can sum it correctly.
+            $wordScore = $request->has('word_score')
+                ? (int) $request->word_score
+                : null;
 
             $answer = Answer::updateOrCreate(
                 [
@@ -95,9 +104,10 @@ class AnswerController extends Controller
                     'question_id' => $question->id,
                 ],
                 [
-                    'choice_id'  => $choiceId,
-                    'choice_string'   => $request->transcript,
-                    'is_correct' => $isCorrect,
+                    'choice_id'     => $choiceId,
+                    'choice_string' => $request->transcript,
+                    'is_correct'    => $isCorrect,
+                    'word_score'    => $wordScore,   // ← was missing before
                 ]
             );
 
@@ -110,6 +120,7 @@ class AnswerController extends Controller
                 $answer,
                 Response::HTTP_CREATED
             );
+
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -120,7 +131,6 @@ class AnswerController extends Controller
             );
         }
     }
-
 
     public function show($id)
     {
@@ -164,11 +174,12 @@ class AnswerController extends Controller
             }
 
             $answer->update([
-                'attempt_id'      => $request->attempt_id,
-                'question_id'     => $request->question_id,
-                'choice_id'       => $request->choice_id,
-                'choice_string'   => $request->transcript,
-                'is_correct'      => Choice::find($request->choice_id)?->is_correct ?? false,
+                'attempt_id'    => $request->attempt_id,
+                'question_id'   => $request->question_id,
+                'choice_id'     => $request->choice_id,
+                'choice_string' => $request->transcript,
+                'is_correct'    => Choice::find($request->choice_id)?->is_correct ?? false,
+                'word_score'    => $request->has('word_score') ? (int) $request->word_score : $answer->word_score,
             ]);
 
             DB::commit();

@@ -23,8 +23,26 @@ class StudentRepository extends BaseRepository implements StudentRepositoryInter
         $student = $this->model->where('nickname', $nickname)->first();
 
         if (!$student) {
-            $student = $this->model->create($attributes)->fresh();
+            // New student - create with is_locked = true by default
+            $student = $this->model->create(array_merge($attributes, ['is_locked' => true]))->fresh();
             $this->auditLogService->insertLog($this->model, 'create', $attributes);
+        } else {
+            // Existing student - update grade_level and section on every login
+            $student->update([
+                'grade_level' => $attributes['grade_level'],
+                'section'     => $attributes['section'],
+            ]);
+            $student = $student->fresh();
+        }
+
+        // ── Check if student is locked ──────────────────────────────────────
+        // Locked students cannot log in — return error immediately
+        if ($student->is_locked) {
+            return [
+                'locked'  => true,
+                'token'   => null,
+                'student' => $student,
+            ];
         }
 
         // Revoke existing tokens
@@ -40,6 +58,7 @@ class StudentRepository extends BaseRepository implements StudentRepositoryInter
         }
 
         return [
+            'locked'  => false,
             'token'   => $token,
             'student' => $student,
         ];

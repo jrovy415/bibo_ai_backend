@@ -19,6 +19,11 @@ class Question extends Model
         'question_text',
         'photo',
         'points',
+        'use_word_scoring',
+    ];
+
+    protected $casts = [
+        'use_word_scoring' => 'boolean',
     ];
 
     protected $with = ['choices', 'questionType'];

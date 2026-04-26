@@ -13,12 +13,13 @@ class Answer extends Model
     public $model_name = 'Answer';
 
     protected $fillable = [
-        'attempt_id',
-        'question_id',
-        'choice_id',
-        'choice_string',
-        'is_correct',
-    ];
+    'attempt_id',
+    'question_id',
+    'choice_id',
+    'choice_string',
+    'is_correct',
+    'word_score',   // ← add this line
+];
 
     protected $with = ['question', 'choice'];
 

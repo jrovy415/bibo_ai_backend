@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentRequest as ModelRequest;
 use App\Models\Student;
+use App\Models\StudentDifficulty;
 use App\Repository\Student\StudentRepositoryInterface;
+use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
@@ -57,9 +59,30 @@ class StudentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => [
+            'data'   => [
                 'student_id' => $student->id,
                 'difficulty' => $currentDifficulty,
+            ],
+        ]);
+    }
+
+    public function updateDifficulty(Request $request, Student $student)
+    {
+        // ✅ FIXED: Added all PostTest variants to validation
+        $request->validate([
+            'difficulty' => 'required|string|in:Introduction,Easy,EasyPostTest,Medium,MediumPostTest,Hard,HardPostTest,Expert,ExpertPostTest,PostTest',
+        ]);
+
+        StudentDifficulty::updateOrCreate(
+            ['student_id' => $student->id],
+            ['difficulty' => $request->difficulty]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'student_id' => $student->id,
+                'difficulty' => $request->difficulty,
             ],
         ]);
     }

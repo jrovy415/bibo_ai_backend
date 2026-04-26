@@ -7,17 +7,17 @@ use App\Http\Controllers\QuestionTypeController;
 use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Student\StudentController;
+use App\Http\Controllers\StudentProgressController;
+use App\Http\Controllers\QuizFeedbackController;
+use App\Http\Controllers\StudentLockController;
+use App\Http\Controllers\NotificationController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
 // Unauthenticated
@@ -48,6 +48,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('answers', AnswerController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('question-types', QuestionTypeController::class);
 
+    // Student Progression — per-student journey tracking
+    Route::get('/student-progress', [StudentProgressController::class, 'index']);
+
+    // Student lock/unlock
+    Route::patch('/students/{student}/lock',   [StudentLockController::class, 'lock']);
+    Route::patch('/students/{student}/unlock', [StudentLockController::class, 'unlock']);
+
+    // ✅ Student difficulty — get and update
+    Route::get('/students/{student}/difficulty',   [StudentController::class, 'getDifficulty']);
+    Route::patch('/students/{student}/difficulty', [StudentController::class, 'updateDifficulty']);
+
+    // Notifications (polling)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/quiz-feedbacks',   [QuizFeedbackController::class, 'index']);
+    Route::post('/quiz-feedbacks',  [QuizFeedbackController::class, 'store']);
+
     $routes = [
         'user/user',
         'role/role',
@@ -59,4 +75,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     foreach ($routes as $route) {
         Route::group([], base_path("routes/api/{$route}.php"));
     }
+});
+
+// ⚠️ TEMPORARY — Delete this route after seeding!
+Route::get('/run-seeder', function () {
+    Artisan::call('db:seed');
+    return response()->json(['message' => 'Seeded successfully!']);
 });
