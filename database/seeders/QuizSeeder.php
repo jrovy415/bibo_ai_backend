@@ -161,6 +161,7 @@ class QuizSeeder extends Seeder
                         'question_type_id' => $readingType->id,
                         'question_text'    => $sentence,
                         'points'           => 1,
+                        'use_word_scoring' => true,
                     ]);
 
                     Choice::create([

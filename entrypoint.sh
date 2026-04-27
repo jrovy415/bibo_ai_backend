@@ -25,9 +25,6 @@ php artisan route:clear || true
 # Run migrations automatically
 php artisan migrate --force || true
 
-# Seed initial data (all seeders are idempotent)
-php artisan db:seed --force || true
-
 # Cache config for performance
 php artisan config:cache || true
 php artisan route:cache || true
