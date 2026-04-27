@@ -204,14 +204,14 @@ class QuizAttemptController extends Controller
                 $percentage = $score;
                 \Log::info("Pre-Test placement: pct={$percentage}%");
 
-                if ($percentage >= 80) {
-                    $newDifficulty = 'Expert';
-                } elseif ($percentage >= 60) {
-                    $newDifficulty = 'Hard';
-                } elseif ($percentage >= 40) {
-                    $newDifficulty = 'Medium';
+                if ($percentage >= 91) {
+                    $newDifficulty = 'Expert'; // Grade Ready Reader
+                } elseif ($percentage >= 61) {
+                    $newDifficulty = 'Hard';   // Developing Reader
+                } elseif ($percentage >= 31) {
+                    $newDifficulty = 'Medium'; // Beginning Reader
                 } else {
-                    $newDifficulty = 'Easy';
+                    $newDifficulty = 'Easy';   // Low Reader
                 }
 
             } elseif (in_array($quiz->difficulty, $terminalDifficulties)) {
