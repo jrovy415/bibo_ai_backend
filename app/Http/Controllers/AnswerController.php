@@ -38,6 +38,16 @@ class AnswerController extends Controller
         return $this->responseService->successResponse($modelName, $data);
     }
 
+    private static array $questionTypeCache = [];
+
+    private static function questionTypeId(string $name): ?string
+    {
+        if (!isset(self::$questionTypeCache[$name])) {
+            self::$questionTypeCache[$name] = QuestionType::where('name', $name)->value('id');
+        }
+        return self::$questionTypeCache[$name];
+    }
+
     public function store(ModelRequest $request)
     {
         DB::beginTransaction();
@@ -45,9 +55,9 @@ class AnswerController extends Controller
         try {
             $question = Question::findOrFail($request->question_id);
 
-            $readingType        = QuestionType::where('name', 'reading')->first()?->id;
-            $multipleChoiceType = QuestionType::where('name', 'multiple_choice')->first()?->id;
-            $trueFalseType      = QuestionType::where('name', 'true_false')->first()?->id;
+            $readingType        = self::questionTypeId('reading');
+            $multipleChoiceType = self::questionTypeId('multiple_choice');
+            $trueFalseType      = self::questionTypeId('true_false');
 
             $choiceId  = null;
             $isCorrect = false;
