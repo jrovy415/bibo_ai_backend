@@ -6,6 +6,7 @@ use App\Http\Requests\QuizRequest as ModelRequest;
 use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Choice;
+use App\Models\Answer;
 use App\Models\QuizAttempt;
 use App\Models\QuizMaterial;
 use App\Services\Utils\ResponseServiceInterface;
@@ -282,10 +283,26 @@ class QuizController extends Controller
                     ->with(['questions.choices', 'questions.questionType', 'material'])
                     ->first();
 
-                return $this->responseService->resolveResponse(
-                    'Resuming incomplete quiz',
-                    $quiz
-                );
+                if (!$quiz) {
+                    // Quiz was deleted — orphaned attempt, skip it and fall through
+                } else {
+                    $totalQuestions = $quiz->questions->count();
+                    $answeredCount  = Answer::where('attempt_id', $incompleteAttempt->id)->count();
+
+                    if ($totalQuestions > 0 && $answeredCount >= $totalQuestions) {
+                        // All questions answered but PATCH /quiz-attempts never reached the server
+                        // (Render timeout). Auto-complete so the student can advance.
+                        $this->autoCompleteAttempt($incompleteAttempt, $quiz);
+                        // Fall through — find the NEXT quiz below
+                        $student->load('currentDifficulty');
+                    } else {
+                        // Truly in-progress — resume it
+                        return $this->responseService->resolveResponse(
+                            'Resuming incomplete quiz',
+                            $quiz
+                        );
+                    }
+                }
             }
 
             // 2. Get student's current difficulty
@@ -451,6 +468,58 @@ class QuizController extends Controller
                 'Error retrieving quiz',
                 $e->getMessage(),
                 Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Auto-complete an attempt where all answers were saved but PATCH /quiz-attempts
+     * never reached the server (e.g. Render free-tier timeout).
+     * Mirrors the scoring and difficulty-advancement logic in QuizAttemptController@update.
+     */
+    private function autoCompleteAttempt(QuizAttempt $attempt, Quiz $quiz): void
+    {
+        $readingDiffs = ['Introduction','EasyPostTest','MediumPostTest','HardPostTest','ExpertPostTest','PostTest'];
+        $isReading    = in_array($quiz->difficulty, $readingDiffs);
+        $answers      = Answer::where('attempt_id', $attempt->id)->get();
+
+        if ($isReading) {
+            $totalPct = $answers->sum(fn($a) => (int)($a->word_score ?? 0));
+            $score    = $answers->count() > 0 ? (int) round($totalPct / $answers->count()) : 0;
+        } else {
+            $score = 0;
+            foreach ($answers as $answer) {
+                $question = $quiz->questions->firstWhere('id', $answer->question_id);
+                if (!$question) continue;
+                $score += $question->use_word_scoring
+                    ? (int)($answer->word_score ?? 0)
+                    : ($answer->is_correct ? ($question->points ?? 1) : 0);
+            }
+        }
+
+        $attempt->update(['score' => $score, 'completed_at' => now()]);
+
+        $levelToPostTest = [
+            'Easy'   => 'EasyPostTest',
+            'Medium' => 'MediumPostTest',
+            'Hard'   => 'HardPostTest',
+            'Expert' => 'ExpertPostTest',
+        ];
+        $newDifficulty = null;
+
+        if ($quiz->difficulty === 'Introduction') {
+            if ($score >= 91)      $newDifficulty = 'Expert';
+            elseif ($score >= 61)  $newDifficulty = 'Hard';
+            elseif ($score >= 31)  $newDifficulty = 'Medium';
+            else                   $newDifficulty = 'Easy';
+        } elseif (isset($levelToPostTest[$quiz->difficulty])) {
+            $newDifficulty = $levelToPostTest[$quiz->difficulty];
+        }
+
+        if ($newDifficulty) {
+            DB::table('student_difficulties')->updateOrInsert(
+                ['student_id' => $attempt->student_id],
+                ['difficulty' => $newDifficulty, 'updated_at' => now(), 'created_at' => now()]
             );
         }
     }
