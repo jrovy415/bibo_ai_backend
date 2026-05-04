@@ -28,6 +28,7 @@ php artisan migrate --force || true
 # Cache config for performance
 php artisan config:cache || true
 php artisan route:cache || true
+php artisan view:cache || true
 
 # Start Laravel server
 exec php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
