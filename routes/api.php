@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AnswerController;
 use App\Http\Controllers\ChoiceController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\QuestionTypeController;
 use App\Http\Controllers\QuizAttemptController;
@@ -58,6 +59,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // ✅ Student difficulty — get and update
     Route::get('/students/{student}/difficulty',   [StudentController::class, 'getDifficulty']);
     Route::patch('/students/{student}/difficulty', [StudentController::class, 'updateDifficulty']);
+
+    // Dashboard — single endpoint replacing 4 separate student dashboard calls
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Notifications (polling)
     Route::get('/notifications', [NotificationController::class, 'index']);
