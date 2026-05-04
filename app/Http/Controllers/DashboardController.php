@@ -34,7 +34,7 @@ class DashboardController extends Controller
             //    since the dashboard only needs quiz titles and scores
             $attempts = QuizAttempt::without(['student', 'answers'])
                 ->where('student_id', $student->id)
-                ->with('quiz.questions')
+                ->with(['quiz' => fn($q) => $q->select('id','title','difficulty')->withCount('questions')])
                 ->orderBy('completed_at', 'asc')
                 ->get();
 
